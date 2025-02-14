@@ -12,12 +12,18 @@ pub fn main() !void {
     var chunk = Chunk.init(allocator);
     defer chunk.deinit();
 
-    const val = Value{ .Number = 1.2 };
-    const constantIdx = chunk.addConstant(val) catch unreachable;
-    try chunk.write(@intFromEnum(OpCode.Constant));
-    try chunk.write(constantIdx);
+    const val1 = Value{ .Number = 1.2 };
+    const constantIdx1 = chunk.addConstant(val1) catch unreachable;
+    try chunk.write(@intFromEnum(OpCode.Constant), 1);
+    try chunk.write(constantIdx1, 1);
 
-    try chunk.write(@intFromEnum(OpCode.Return));
+    const val2 = Value{ .Number = 3.1415 };
+    const constantIdx2 = chunk.addConstant(val2) catch unreachable;
+    try chunk.write(@intFromEnum(OpCode.Constant), 2);
+    try chunk.write(constantIdx2, 2);
+
+    try chunk.write(@intFromEnum(OpCode.Return), 2);
+    try chunk.write(@intFromEnum(OpCode.Return), 3);
 
     chunk.disassemble("test chunk");
 }
