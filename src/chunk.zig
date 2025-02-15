@@ -1,11 +1,13 @@
 const std = @import("std");
+const print = std.debug.print;
 const ArrayList = std.ArrayList;
 const Value = @import("./value.zig").Value;
 
 pub const OpCode = enum(u8) {
-    Constant,
-    ConstantLong,
-    Return,
+    CONSTANT,
+    CONSTANT_LONG,
+    NEGATE,
+    RETURN,
 };
 
 const Line = struct {
@@ -48,13 +50,13 @@ pub const Chunk = struct {
         if (chunk.constants.items.len > std.math.maxInt(u8)) {
             const constIdx = try chunk.addConstantLong(value);
             const constIdxBytes = std.mem.asBytes(&constIdx);
-            try chunk.write(@intFromEnum(OpCode.ConstantLong), line);
+            try chunk.write(@intFromEnum(OpCode.CONSTANT_LONG), line);
             for (constIdxBytes) |byte| {
                 try chunk.write(byte, line);
             }
         } else {
             const constIdx = try chunk.addConstant(value);
-            try chunk.write(@intFromEnum(OpCode.Constant), line);
+            try chunk.write(@intFromEnum(OpCode.CONSTANT), line);
             try chunk.write(constIdx, line);
         }
     }
@@ -72,39 +74,40 @@ pub const Chunk = struct {
     }
 
     pub fn disassemble(chunk: *Chunk, name: []const u8) void {
-        std.debug.print("== {s} ==\n", .{name});
+        print("== {s} ==\n", .{name});
 
-        var offset: u32 = 0;
+        var offset: usize = 0;
         while (offset < chunk.code.items.len) {
             offset = chunk.disassembleInstruction(offset);
         }
     }
 
-    fn disassembleInstruction(chunk: *Chunk, offset: u32) u32 {
-        std.debug.print("{d:0>4} ", .{offset});
+    pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
+        print("{d:0>4} ", .{offset});
 
         const line: u16 = chunk.getLine(offset);
         if (line != chunk.last_line) {
-            std.debug.print("{d: >4} ", .{line});
+            print("{d: >4} ", .{line});
             chunk.last_line = line;
         } else {
-            std.debug.print("   | ", .{});
+            print("   | ", .{});
         }
 
         const instruction: u8 = chunk.code.items[offset];
         switch (@as(OpCode, @enumFromInt(instruction))) {
-            .Constant => return constantInstruction("OP_CONSTANT", chunk, offset),
-            .ConstantLong => return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset),
-            .Return => return simpleInstruction("OP_RETURN", offset),
+            .CONSTANT => return constantInstruction("OP_CONSTANT", chunk, offset),
+            .CONSTANT_LONG => return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset),
+            .NEGATE => return simpleInstruction("OP_NEGATE", offset),
+            .RETURN => return simpleInstruction("OP_RETURN", offset),
             // else => {
-            //     std.debug.print("Unknown opcode %d\n", instruction);
+            //     print("Unknown opcode %d\n", instruction);
             //     return offset + 1;
             // },
         }
     }
 
-    fn getLine(chunk: *Chunk, offset: u32) u16 {
-        var offsetVar: u32 = offset;
+    fn getLine(chunk: *Chunk, offset: usize) u16 {
+        var offsetVar: usize = offset;
         for (chunk.lines.items) |line| {
             if (offsetVar < line.count) {
                 return line.line;
@@ -115,25 +118,25 @@ pub const Chunk = struct {
     }
 };
 
-fn simpleInstruction(name: []const u8, offset: u32) u32 {
-    std.debug.print("{s}\n", .{name});
+fn simpleInstruction(name: []const u8, offset: usize) usize {
+    print("{s}\n", .{name});
     return offset + 1;
 }
 
-fn constantInstruction(name: []const u8, chunk: *Chunk, offset: u32) u32 {
+fn constantInstruction(name: []const u8, chunk: *Chunk, offset: usize) usize {
     const constantIdx: u8 = chunk.code.items[offset + 1];
-    std.debug.print("{s: <16} {d: >4} '", .{ name, constantIdx });
+    print("{s: <16} {d: >4} '", .{ name, constantIdx });
     printValue(chunk.constants.items[constantIdx]);
-    std.debug.print("'\n", .{});
+    print("'\n", .{});
     return offset + 2;
 }
 
-fn constantLongInstruction(name: []const u8, chunk: *Chunk, offset: u32) u32 {
+fn constantLongInstruction(name: []const u8, chunk: *Chunk, offset: usize) usize {
     const constantIdxBytes = chunk.code.items[offset + 1 .. offset + 4];
     const constantIdx = combine_u8_to_u24(constantIdxBytes);
-    std.debug.print("{s: <16} {d: >4} '", .{ name, constantIdx });
+    print("{s: <16} {d: >4} '", .{ name, constantIdx });
     printValue(chunk.constants.items[constantIdx]);
-    std.debug.print("'\n", .{});
+    print("'\n", .{});
     return offset + 4;
 }
 
@@ -141,8 +144,8 @@ fn combine_u8_to_u24(bytes: []u8) u24 {
     return (@as(u24, bytes[0]) << 16) | (@as(u24, bytes[1]) << 8) | @as(u24, bytes[2]);
 }
 
-fn printValue(value: Value) void {
+pub fn printValue(value: Value) void {
     switch (value) {
-        Value.Number => std.debug.print("{d}", .{value.Number}),
+        Value.Number => print("{d}", .{value.Number}),
     }
 }
