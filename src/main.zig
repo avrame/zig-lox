@@ -1,9 +1,8 @@
 const std = @import("std");
-const Chunk = @import("chunk.zig").Chunk;
-const OpCode = @import("chunk.zig").OpCode;
-const Value = @import("value.zig").Value;
-const VM = @import("vm.zig").VM;
-const ArrayList = std.ArrayList;
+pub const Chunk = @import("chunk.zig").Chunk;
+pub const OpCode = @import("chunk.zig").OpCode;
+pub const Value = @import("value.zig").Value;
+pub const VM = @import("vm.zig").VM;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

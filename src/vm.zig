@@ -99,8 +99,9 @@ pub const VM = struct {
                     try vm.binaryOp(@as(OpCode, @enumFromInt(instruction)));
                 },
                 .NEGATE => {
-                    const num = try vm.pop();
-                    try vm.push(Value{ .Number = -num.Number });
+                    // const num = try vm.pop();
+                    // try vm.push(Value{ .Number = -num.Number });
+                    vm.stack.items[vm.stack.count - 1] = Value{ .Number = -vm.stack.items[vm.stack.count - 1].Number };
                 },
                 .RETURN => {
                     const val = try vm.pop();
