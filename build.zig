@@ -110,19 +110,28 @@ pub fn build(b: *std.Build) void {
         .imports = &.{}, // Removed zbench import
     });
 
+    // Regular tests
     const exe_unit_tests = b.addTest(.{
+        .root_source_file = b.path("test/tests.zig"), // Regular tests go here
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_unit_tests.root_module.addImport("lox", lox_module);
+    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_exe_unit_tests.step);
+
+    // Benchmarks
+    const benchmarks = b.addTest(.{
         .root_source_file = b.path("test/benchmarks.zig"),
         .target = target,
         .optimize = optimize,
     });
-
-    exe_unit_tests.root_module.addImport("lox", lox_module);
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // Create the test step and make it depend on running the tests
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_exe_unit_tests.step);
+    benchmarks.root_module.addImport("lox", lox_module);
+    const run_benchmarks = b.addRunArtifact(benchmarks);
+    run_benchmarks.has_side_effects = true; // Always run benchmarks when requested
+    const bench_step = b.step("bench", "Run benchmarks");
+    bench_step.dependOn(&run_benchmarks.step);
 
     std.debug.print("\nSetting up test step...\n", .{});
 }

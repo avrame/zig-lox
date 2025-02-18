@@ -1,14 +1,15 @@
 const std = @import("std");
 const lox = @import("lox");
 
-// Get everything from the lox module
 const Chunk = lox.Chunk;
 const OpCode = lox.OpCode;
 const Value = lox.Value;
 const VM = lox.VM;
 
-// Avg time per iteration with pop/push: 129726.083ns
-// Avg time per iteration without pop/push: 124638.334ns
+// Avg time per iteration with pop/push: 128489.041ns
+// Avg time per iteration without pop/push: 124779.458ns
+// without pop/push is faster by ~3%
+
 test "manual benchmark" {
     std.debug.print("\n\nStarting manual benchmark\n", .{});
 
@@ -24,6 +25,8 @@ test "manual benchmark" {
         defer chunk.deinit();
 
         try chunk.writeConstant(Value{ .Number = 5.6 }, 1);
+        try chunk.write(@intFromEnum(OpCode.NEGATE), 1);
+        try chunk.write(@intFromEnum(OpCode.NEGATE), 1);
         try chunk.write(@intFromEnum(OpCode.NEGATE), 1);
         try chunk.write(@intFromEnum(OpCode.RETURN), 1);
 
