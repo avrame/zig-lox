@@ -17,11 +17,12 @@ pub fn main() !void {
     defer chunk.deinit();
 
     try chunk.writeConstant(Value{ .Number = 1.2 }, 1);
-    try chunk.writeConstant(Value{ .Number = 3.1415 }, 2);
-
-    try chunk.write(@intFromEnum(OpCode.NEGATE), 2);
-
-    try chunk.write(@intFromEnum(OpCode.RETURN), 2);
+    try chunk.writeConstant(Value{ .Number = 3.4 }, 1);
+    try chunk.write(@intFromEnum(OpCode.ADD), 1);
+    try chunk.writeConstant(Value{ .Number = 5.6 }, 1);
+    try chunk.write(@intFromEnum(OpCode.DIVIDE), 1);
+    try chunk.write(@intFromEnum(OpCode.NEGATE), 1);
+    try chunk.write(@intFromEnum(OpCode.RETURN), 1);
 
     const result = vm.interpret(&chunk) catch .RUNTIME_ERROR;
     switch (result) {

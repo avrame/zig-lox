@@ -6,6 +6,10 @@ const Value = @import("value.zig").Value;
 pub const OpCode = enum(u8) {
     CONSTANT,
     CONSTANT_LONG,
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
     NEGATE,
     RETURN,
 };
@@ -100,10 +104,14 @@ pub const Chunk = struct {
 
         const instruction: u8 = chunk.code.items[offset];
         switch (@as(OpCode, @enumFromInt(instruction))) {
-            .CONSTANT => return constantInstruction("OP_CONSTANT", chunk, offset),
-            .CONSTANT_LONG => return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset),
-            .NEGATE => return simpleInstruction("OP_NEGATE", offset),
-            .RETURN => return simpleInstruction("OP_RETURN", offset),
+            .CONSTANT => return constantInstruction("CONSTANT", chunk, offset),
+            .CONSTANT_LONG => return constantLongInstruction("CONSTANT_LONG", chunk, offset),
+            .ADD => return simpleInstruction("ADD", offset),
+            .SUBTRACT => return simpleInstruction("SUBTRACT", offset),
+            .MULTIPLY => return simpleInstruction("MULTIPLY", offset),
+            .DIVIDE => return simpleInstruction("DIVIDE", offset),
+            .NEGATE => return simpleInstruction("NEGATE", offset),
+            .RETURN => return simpleInstruction("RETURN", offset),
             // else => {
             //     print("Unknown opcode %d\n", instruction);
             //     return offset + 1;

@@ -14,6 +14,10 @@ pub const InterpretResult = enum {
     RUNTIME_ERROR,
 };
 
+pub const vmError = error{
+    InvalidBinaryOpCode,
+};
+
 pub const VM = struct {
     chunk: *Chunk,
     ip: usize,
@@ -47,6 +51,30 @@ pub const VM = struct {
         return vm.chunk.constants.items[vm.readByte()];
     }
 
+    fn binaryOp(vm: *VM, opCode: OpCode) !void {
+        const b = try vm.pop();
+        const a = try vm.pop();
+        var result: f64 = undefined;
+        switch (opCode) {
+            .ADD => {
+                result = a.Number + b.Number;
+            },
+            .SUBTRACT => {
+                result = a.Number - b.Number;
+            },
+            .MULTIPLY => {
+                result = a.Number * b.Number;
+            },
+            .DIVIDE => {
+                result = a.Number / b.Number;
+            },
+            else => {
+                return vmError.InvalidBinaryOpCode;
+            },
+        }
+        try vm.push(Value{ .Number = result });
+    }
+
     fn run(vm: *VM) !InterpretResult {
         var instruction: u8 = undefined;
         while (true) {
@@ -66,6 +94,9 @@ pub const VM = struct {
                 .CONSTANT => {
                     const constant = vm.readConstant();
                     try vm.push(constant);
+                },
+                .ADD, .SUBTRACT, .MULTIPLY, .DIVIDE => {
+                    try vm.binaryOp(@as(OpCode, @enumFromInt(instruction)));
                 },
                 .NEGATE => {
                     const num = try vm.pop();
