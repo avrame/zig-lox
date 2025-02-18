@@ -1,7 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
-const ArrayList = std.ArrayList;
-const Value = @import("./value.zig").Value;
+const DynamicArray = @import("memory.zig").DynamicArray;
+const Value = @import("value.zig").Value;
 
 pub const OpCode = enum(u8) {
     CONSTANT,
@@ -17,16 +17,16 @@ const Line = struct {
 
 pub const Chunk = struct {
     allocator: std.mem.Allocator,
-    code: ArrayList(u8),
-    constants: ArrayList(Value),
-    lines: ArrayList(Line),
+    code: DynamicArray(u8),
+    constants: DynamicArray(Value),
+    lines: DynamicArray(Line),
     last_line: u16,
-    pub fn init(allocator: std.mem.Allocator) Chunk {
+    pub fn init(allocator: std.mem.Allocator) !Chunk {
         return Chunk{
             .allocator = allocator,
-            .code = ArrayList(u8).init(allocator),
-            .constants = ArrayList(Value).init(allocator),
-            .lines = ArrayList(Line).init(allocator),
+            .code = try DynamicArray(u8).init(allocator),
+            .constants = try DynamicArray(Value).init(allocator),
+            .lines = try DynamicArray(Line).init(allocator),
             .last_line = 0,
         };
     }
@@ -38,16 +38,21 @@ pub const Chunk = struct {
     }
 
     pub fn write(chunk: *Chunk, byte: u8, line: u16) !void {
-        try chunk.code.append(byte);
-        if (chunk.lines.items.len > 0 and chunk.lines.items[chunk.lines.items.len - 1].line == line) {
-            chunk.lines.items[chunk.lines.items.len - 1].count += 1;
+        try chunk.code.push(byte);
+        const lastOptional = if (chunk.lines.len() > 0) &chunk.lines.items[chunk.lines.len() - 1] else null;
+        if (lastOptional) |last| {
+            if (last.line == line) {
+                last.count += 1;
+            } else {
+                try chunk.lines.push(Line{ .line = line, .count = 1 });
+            }
         } else {
-            try chunk.lines.append(Line{ .line = line, .count = 1 });
+            try chunk.lines.push(Line{ .line = line, .count = 1 });
         }
     }
 
     pub fn writeConstant(chunk: *Chunk, value: Value, line: u16) !void {
-        if (chunk.constants.items.len > std.math.maxInt(u8)) {
+        if (chunk.constants.len() > std.math.maxInt(u8)) {
             const constIdx = try chunk.addConstantLong(value);
             const constIdxBytes = std.mem.asBytes(&constIdx);
             try chunk.write(@intFromEnum(OpCode.CONSTANT_LONG), line);
@@ -62,14 +67,14 @@ pub const Chunk = struct {
     }
 
     pub fn addConstant(chunk: *Chunk, value: Value) !u8 {
-        const index: u8 = @intCast(chunk.constants.items.len);
-        try chunk.constants.append(value);
+        const index: u8 = @intCast(chunk.constants.len());
+        try chunk.constants.push(value);
         return index;
     }
 
-    pub fn addConstantLong(chunk: *Chunk, value: Value) !u24 {
-        const index: u24 = @intCast(chunk.constants.items.len);
-        try chunk.constants.append(value);
+    pub fn addConstantLong(chunk: *Chunk, value: Value) !usize {
+        const index: usize = chunk.constants.len();
+        try chunk.constants.push(value);
         return index;
     }
 
@@ -77,7 +82,7 @@ pub const Chunk = struct {
         print("== {s} ==\n", .{name});
 
         var offset: usize = 0;
-        while (offset < chunk.code.items.len) {
+        while (offset < chunk.code.len()) {
             offset = chunk.disassembleInstruction(offset);
         }
     }

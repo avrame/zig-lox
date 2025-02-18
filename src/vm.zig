@@ -1,6 +1,6 @@
 const std = @import("std");
 const print = std.debug.print;
-const ArrayList = std.ArrayList;
+const DynamicArray = @import("memory.zig").DynamicArray;
 const chunkModule = @import("chunk.zig");
 const Chunk = chunkModule.Chunk;
 const OpCode = chunkModule.OpCode;
@@ -17,11 +17,11 @@ pub const InterpretResult = enum {
 pub const VM = struct {
     chunk: *Chunk,
     ip: usize,
-    allocator: std.mem.Allocator,
-    stack: ArrayList(Value),
+    stack: DynamicArray(Value),
 
-    pub fn init(allocator: std.mem.Allocator) VM {
-        return VM{ .chunk = undefined, .ip = 0, .allocator = allocator, .stack = ArrayList(Value).init(allocator) };
+    pub fn init(allocator: std.mem.Allocator) !VM {
+        const stack = try DynamicArray(Value).init(allocator);
+        return VM{ .chunk = undefined, .ip = 0, .stack = stack };
     }
 
     pub fn deinit(vm: *VM) void {
@@ -30,11 +30,11 @@ pub const VM = struct {
     }
 
     fn push(vm: *VM, value: Value) !void {
-        try vm.stack.append(value);
+        try vm.stack.push(value);
     }
 
-    fn pop(vm: *VM) Value {
-        return vm.stack.pop();
+    fn pop(vm: *VM) !Value {
+        return try vm.stack.pop();
     }
 
     fn readByte(vm: *VM) u8 {
@@ -52,9 +52,10 @@ pub const VM = struct {
         while (true) {
             if (debug.TRACE_EXECUTION) {
                 print("          ", .{});
-                for (vm.stack.items) |value| {
+                var i: usize = 0;
+                while (i < vm.stack.count) : (i += 1) {
                     print("[ ", .{});
-                    printValue(value);
+                    printValue(vm.stack.items[i]);
                     print(" ]", .{});
                 }
                 print("\n", .{});
@@ -66,9 +67,13 @@ pub const VM = struct {
                     const constant = vm.readConstant();
                     try vm.push(constant);
                 },
-                .NEGATE => try vm.push(Value{ .Number = -vm.pop().Number }),
+                .NEGATE => {
+                    const num = try vm.pop();
+                    try vm.push(Value{ .Number = -num.Number });
+                },
                 .RETURN => {
-                    printValue(vm.pop());
+                    const val = try vm.pop();
+                    printValue(val);
                     print("\n", .{});
                     return .OK;
                 },

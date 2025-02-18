@@ -10,10 +10,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var vm = VM.init(allocator);
+    var vm = try VM.init(allocator);
     defer vm.deinit();
 
-    var chunk = Chunk.init(allocator);
+    var chunk = try Chunk.init(allocator);
     defer chunk.deinit();
 
     try chunk.writeConstant(Value{ .Number = 1.2 }, 1);
