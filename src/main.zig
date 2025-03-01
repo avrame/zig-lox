@@ -1,8 +1,15 @@
 const std = @import("std");
-pub const Chunk = @import("chunk.zig").Chunk;
-pub const OpCode = @import("chunk.zig").OpCode;
+const stdin = std.io.getStdIn().reader();
+
+const chunk = @import("chunk.zig");
+pub const Chunk = chunk.Chunk;
+pub const OpCode = chunk.OpCode;
+
+const vm = @import("vm.zig");
+pub const VM = vm.VM;
+pub const InterpretResult = vm.InterpretResult;
+
 pub const Value = @import("value.zig").Value;
-pub const VM = @import("vm.zig").VM;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -12,29 +19,67 @@ pub fn main() !void {
     var vm = try VM.init(allocator);
     defer vm.deinit();
 
-    var chunk = try Chunk.init(allocator);
-    defer chunk.deinit();
+    const args = std.os.argv;
 
-    try chunk.writeConstant(Value{ .Number = 1.2 }, 1);
-    try chunk.writeConstant(Value{ .Number = 3.4 }, 1);
-    try chunk.write(@intFromEnum(OpCode.ADD), 1);
-    try chunk.writeConstant(Value{ .Number = 5.6 }, 1);
-    try chunk.write(@intFromEnum(OpCode.DIVIDE), 1);
-    try chunk.write(@intFromEnum(OpCode.NEGATE), 1);
-    try chunk.write(@intFromEnum(OpCode.RETURN), 1);
-
-    const result = vm.interpret(&chunk) catch .RUNTIME_ERROR;
-    switch (result) {
-        .OK => {},
-        .COMPILE_ERROR => {
-            std.debug.print("Compile error!\n", .{});
-            return error.CompileError;
-        },
-        .RUNTIME_ERROR => {
-            std.debug.print("Runtime error!\n", .{});
-            return error.RuntimeError;
-        },
+    std.debug.print("There are {d} args:\n", .{args.len});
+    for (args) |arg| {
+        std.debug.print(" {s}\n", .{arg});
     }
 
-    // chunk.disassemble("test chunk");
+    if (args.len == 1) {
+        try repl();
+    } else if (args.len == 2) {
+        // runFile(args[1]);
+    } else {
+        std.debug.print("Usage: lox [path]\n", .{});
+        std.process.exit(64);
+    }
+}
+
+fn repl() !void {
+    while (true) {
+        std.debug.print("> ", .{});
+        var buf: [1024]u8 = undefined;
+        if (try stdin.readUntilDelimiterOrEof(buf[0..], '\n')) |line| {
+            interpret(line);
+        } else {
+            std.debug.print("\n", .{});
+            break;
+        }
+    }
+}
+
+fn runFile(path: []u8) !void {
+    const source: []u8 = readFile(path);
+    const result: InterpretResult = interpret(source);
+
+    if (result == InterpretResult.COMPILE_ERROR) {
+        std.process.exit(65);
+    }
+    if (result == InterpretResult.RUNTIME_ERROR) {
+        std.process.exit(70);
+    }
+}
+
+fn readFile(path: []u8) []u8 {
+    // Get an allocator
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        _ = gpa.deinit();
+    }
+
+    // Open a file
+    const file = std.fs.cwd().openFile(path, .{ .read = true }) catch {
+        std.debug.print("Could not open file \"{s}\".\n", .{path});
+        std.process.exit(74);
+    };
+    defer file.close();
+
+    // Read the file into a buffer
+    const stat = try file.stat();
+    const buffer = try file.readToEndAlloc(allocator, stat.size);
+    defer allocator.free(buffer);
+
+    return buffer;
 }

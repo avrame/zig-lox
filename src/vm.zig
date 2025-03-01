@@ -7,6 +7,7 @@ const OpCode = chunkModule.OpCode;
 const printValue = chunkModule.printValue;
 const Value = @import("value.zig").Value;
 const debug = @import("debug.zig");
+const compile = @import("compiler.zig").compile;
 
 pub const InterpretResult = enum {
     OK,
@@ -114,8 +115,8 @@ pub const VM = struct {
         }
     }
 
-    pub fn interpret(vm: *VM, chunk: *Chunk) !InterpretResult {
-        vm.chunk = chunk;
-        return vm.run();
+    pub fn interpret(vm: *VM, source: []u8) !InterpretResult {
+        compile(source);
+        return InterpretResult.OK;
     }
 };
